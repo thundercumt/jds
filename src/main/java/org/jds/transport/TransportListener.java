@@ -1,6 +1,9 @@
 package org.jds.transport;
 
+import java.io.IOException;
+
 public interface TransportListener {
-    Transport onConnect();
-    void listen();
+    void onConnect(Transport transport) throws IOException;
+    void listen() throws IOException;
+    void interrupt();
 }
