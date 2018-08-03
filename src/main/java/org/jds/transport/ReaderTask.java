@@ -46,11 +46,15 @@ public class ReaderTask extends SelectorTask {
                 SelectionKey key = iter.next();
                 if (key.isValid() && key.isReadable()) {
                     iter.remove();
-                    key.cancel();
+                    //key.cancel();
                     SocketChannel ch = (SocketChannel) key.channel();
                     SocketTransport st = ((SocketTransport) key.attachment());
                     try {
                         int r = ch.read(st.readBuffer());
+                        
+                        if (r==-1) {
+                            key.un
+                        }
                     }
                 }
                 

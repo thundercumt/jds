@@ -98,7 +98,7 @@ public class SocketTransportListener implements TransportListener {
                 while (iter.hasNext()) {
                     SelectionKey key = iter.next();
                     iter.remove();
-                    key.cancel();
+                    //key.cancel();
                     if (key.isValid() && key.isAcceptable()) {
                         SocketChannel sc = null;
                         try {
