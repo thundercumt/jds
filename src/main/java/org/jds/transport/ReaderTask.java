@@ -1,7 +1,6 @@
 package org.jds.transport;
 
 import java.io.IOException;
-import java.nio.channels.Channel;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -12,14 +11,14 @@ import java.util.List;
 import java.util.Set;
 
 public class ReaderTask extends SelectorTask {
-    private final Channel ch;
+    private final SocketTransport st;
 
-    public ReaderTask(SocketChannel channel, Selector selector) {
+    public ReaderTask(SocketTransport transport, Selector selector) {
         super(selector);
-        this.ch = channel;
-        if (!channel.isRegistered()) {
+        this.st = transport;
+        if (!st.channel().isRegistered()) {
             try {
-                channel.register(selector, SelectionKey.OP_READ);
+                st.channel().register(selector, SelectionKey.OP_READ);
             } catch (ClosedChannelException e) {
                 e.printStackTrace();
             }
@@ -42,22 +41,25 @@ public class ReaderTask extends SelectorTask {
             List<SocketChannel> ready = new LinkedList<>();
             Set<SelectionKey> keys = selector.selectedKeys();
             Iterator<SelectionKey> iter = keys.iterator();
-            while(iter.hasNext()) {
+            while (iter.hasNext()) {
                 SelectionKey key = iter.next();
                 if (key.isValid() && key.isReadable()) {
                     iter.remove();
-                    //key.cancel();
+                    // key.cancel();
                     SocketChannel ch = (SocketChannel) key.channel();
                     SocketTransport st = ((SocketTransport) key.attachment());
                     try {
                         int r = ch.read(st.readBuffer());
-                        
-                        if (r==-1) {
-                            key.un
-                        }
+                        if (r == -1)
+                            key.cancel();
+                        int end = st.delimiter().complete(st.readBuffer());
+                        if (end != -1)
+                            st.handle(st.readBuffer(), end);
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
                 }
-                
+
             }
         }
 

@@ -7,11 +7,15 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
-public class SocketTransport implements Transport {
+import org.jds.protocol.Delimiter;
+
+public class SocketTransport implements Transport, CompleteHandler {
     private Socket s;
     private SocketChannel ch;
     private ByteBuffer rb;
     private ByteBuffer wb;
+    private Delimiter dl;
+    private CompleteHandler handler;
 
     static class SocketTransportBuilder {
         private SocketTransport st = new SocketTransport();
@@ -71,6 +75,16 @@ public class SocketTransport implements Transport {
             }
             return this;
         }
+
+        public SocketTransportBuilder delimiter(Delimiter delimiter) {
+            st.dl = delimiter;
+            return this;
+        }
+
+        public SocketTransportBuilder completeHandler(CompleteHandler handler) {
+            st.handler = handler;
+            return this;
+        }
     }
 
     private SocketTransport() {
@@ -92,6 +106,10 @@ public class SocketTransport implements Transport {
         return wb;
     }
 
+    public Delimiter delimiter() {
+        return dl;
+    }
+
     @Override
     public int write(byte[] buf, int offset, int len) throws IOException {
         return ch.write(ByteBuffer.wrap(buf, offset, len));
@@ -103,7 +121,7 @@ public class SocketTransport implements Transport {
     }
 
     @Override
-    public int onRead(byte[] buf, int offset, int len) throws IOException {
-        return ch.read(ByteBuffer.wrap(buf, offset, len));
+    public void handle(ByteBuffer bf, int len) {
+        handler.handle(bf, len);
     }
 }

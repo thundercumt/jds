@@ -2,8 +2,7 @@ package org.jds.transport;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.nio.channels.ClosedChannelException;
+import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -17,30 +16,38 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class SocketTransportListener implements TransportListener {
-    private ServerSocket s;
+    //private ServerSocket s;
     private ServerSocketChannel ch;
     private Selector selector = Selector.open();
     private ExecutorService executor;
 
     public SocketTransportListener(InetAddress addr, int port, int tp) throws IOException {
-        s = new ServerSocket(port, 9999, addr);
-        ch = s.getChannel();
+        ch = ServerSocketChannel.open();
+        ch.bind(new InetSocketAddress(addr, port));
         executor = Executors.newScheduledThreadPool(tp);
     }
 
     public SocketTransportListener(InetAddress addr, int port, int backlog, int tp) throws IOException {
-        s = new ServerSocket(port, backlog, addr);
-        ch = s.getChannel();
+        ch = ServerSocketChannel.open();
+        ch.bind(new InetSocketAddress(addr, port), backlog);
+        executor = Executors.newScheduledThreadPool(tp);
+    }
+
+    public SocketTransportListener(String host, int port, int backlog, int tp) throws IOException {
+        InetAddress addr = InetAddress.getByName(host);
+        ch = ServerSocketChannel.open();
+        ch.bind(new InetSocketAddress(addr, port), backlog);
         executor = Executors.newScheduledThreadPool(tp);
     }
 
     @Override
     public void listen() {
         try {
+            ch.configureBlocking(false);
             ch.register(selector, SelectionKey.OP_ACCEPT);
             AccepterTask accepter = new AccepterTask(this, selector);
             executor.submit(accepter);
-        } catch (ClosedChannelException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -52,22 +59,13 @@ public class SocketTransportListener implements TransportListener {
     @Override
     public void onConnect(Transport transport) throws IOException {
         SocketTransport st = (SocketTransport) transport;
+        st.channel().configureBlocking(false);
         st.channel().register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
     }
 
     @Override
     public void interrupt() {
         this.selector.wakeup();
-    }
-
-    static class batchConnectTask implements Runnable {
-
-        @Override
-        public void run() {
-            // TODO Auto-generated method stub
-
-        }
-
     }
 
     static class AccepterTask extends SelectorTask {
