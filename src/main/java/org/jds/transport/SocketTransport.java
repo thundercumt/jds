@@ -9,7 +9,7 @@ import java.nio.channels.SocketChannel;
 
 import org.jds.protocol.Delimiter;
 
-public class SocketTransport implements Transport, CompleteHandler {
+public class SocketTransport implements Transport {
     private Socket s;
     private SocketChannel ch;
     private ByteBuffer rb;
@@ -115,13 +115,16 @@ public class SocketTransport implements Transport, CompleteHandler {
         return ch.write(ByteBuffer.wrap(buf, offset, len));
     }
 
+    public int write(ByteBuffer bf) throws IOException {
+        return ch.write(bf);
+    }
+
     @Override
     public int read(byte[] buf, int offset, int len) throws IOException {
         return ch.read(ByteBuffer.wrap(buf, offset, len));
     }
 
-    @Override
     public void handle(ByteBuffer bf, int len) {
-        handler.handle(bf, len);
+        handler.handle(this, bf, len);
     }
 }

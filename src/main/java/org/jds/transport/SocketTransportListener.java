@@ -21,6 +21,7 @@ public class SocketTransportListener implements TransportListener {
     private Selector selector;
     private ExecutorService executor;
     private Delimiter delimiter;
+    private CompleteHandler handler;
 
     public static class SocketTransportListenerBuilder {
         private SocketTransportListener obj = new SocketTransportListener();
@@ -76,6 +77,11 @@ public class SocketTransportListener implements TransportListener {
 
         public SocketTransportListenerBuilder delimiter(Delimiter del) {
             obj.delimiter = del;
+            return this;
+        }
+
+        public SocketTransportListenerBuilder handler(CompleteHandler hdl) {
+            obj.handler = hdl;
             return this;
         }
     }
@@ -158,7 +164,7 @@ public class SocketTransportListener implements TransportListener {
                     public void run() {
                         for (SocketChannel ch : ready) {
                             SocketTransport st = new SocketTransport.SocketTransportBuilder().channel(ch).buffer(1024)
-                                    .delimiter(listener.delimiter).build();
+                                    .delimiter(listener.delimiter).completeHandler(listener.handler).build();
                             try {
                                 listener.onConnect(st);
                             } catch (IOException e) {
