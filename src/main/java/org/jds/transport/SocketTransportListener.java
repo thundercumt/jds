@@ -12,32 +12,75 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.jds.protocol.Delimiter;
+
 public class SocketTransportListener implements TransportListener {
-    //private ServerSocket s;
     private ServerSocketChannel ch;
-    private Selector selector = Selector.open();
+    private Selector selector;
     private ExecutorService executor;
+    private Delimiter delimiter;
 
-    public SocketTransportListener(InetAddress addr, int port, int tp) throws IOException {
-        ch = ServerSocketChannel.open();
-        ch.bind(new InetSocketAddress(addr, port));
-        executor = Executors.newScheduledThreadPool(tp);
+    public static class SocketTransportListenerBuilder {
+        private SocketTransportListener obj = new SocketTransportListener();
+
+        public SocketTransportListener build() {
+            if (obj.executor == null)
+                throw new IllegalArgumentException("null executor");
+            if (obj.ch == null)
+                throw new IllegalArgumentException("null channel");
+            if (obj.delimiter == null)
+                throw new IllegalArgumentException("null delimiter");
+            return obj;
+        }
+
+        public SocketTransportListenerBuilder listenOn(InetAddress addr, int port) {
+            try {
+                obj.selector = Selector.open();
+                obj.ch = ServerSocketChannel.open();
+                obj.ch.bind(new InetSocketAddress(addr, port));
+                return this;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public SocketTransportListenerBuilder listenOn(InetAddress addr, int port, int backlog) {
+            try {
+                obj.selector = Selector.open();
+                obj.ch = ServerSocketChannel.open();
+                obj.ch.bind(new InetSocketAddress(addr, port), backlog);
+                return this;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public SocketTransportListenerBuilder listenOn(String host, int port, int backlog) {
+            try {
+                obj.selector = Selector.open();
+                obj.ch = ServerSocketChannel.open();
+                InetAddress addr = InetAddress.getByName(host);
+                obj.ch.bind(new InetSocketAddress(addr, port), backlog);
+                return this;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public SocketTransportListenerBuilder executor(ExecutorService exec) {
+            obj.executor = exec;
+            return this;
+        }
+
+        public SocketTransportListenerBuilder delimiter(Delimiter del) {
+            obj.delimiter = del;
+            return this;
+        }
     }
 
-    public SocketTransportListener(InetAddress addr, int port, int backlog, int tp) throws IOException {
-        ch = ServerSocketChannel.open();
-        ch.bind(new InetSocketAddress(addr, port), backlog);
-        executor = Executors.newScheduledThreadPool(tp);
-    }
-
-    public SocketTransportListener(String host, int port, int backlog, int tp) throws IOException {
-        InetAddress addr = InetAddress.getByName(host);
-        ch = ServerSocketChannel.open();
-        ch.bind(new InetSocketAddress(addr, port), backlog);
-        executor = Executors.newScheduledThreadPool(tp);
+    private SocketTransportListener() {
     }
 
     @Override
@@ -96,7 +139,7 @@ public class SocketTransportListener implements TransportListener {
                 while (iter.hasNext()) {
                     SelectionKey key = iter.next();
                     iter.remove();
-                    //key.cancel();
+                    // key.cancel();
                     if (key.isValid() && key.isAcceptable()) {
                         SocketChannel sc = null;
                         try {
@@ -114,7 +157,8 @@ public class SocketTransportListener implements TransportListener {
                     @Override
                     public void run() {
                         for (SocketChannel ch : ready) {
-                            SocketTransport st = new SocketTransport.SocketTransportBuilder().channel(ch).buffer(1024).build();
+                            SocketTransport st = new SocketTransport.SocketTransportBuilder().channel(ch).buffer(1024)
+                                    .delimiter(listener.delimiter).build();
                             try {
                                 listener.onConnect(st);
                             } catch (IOException e) {
