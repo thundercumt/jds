@@ -19,6 +19,7 @@ import org.jds.protocol.Delimiter;
 public class SocketTransportListener implements TransportListener {
     private ServerSocketChannel ch;
     private Selector selector;
+    private Selector ioSelector;
     private ExecutorService executor;
     private Delimiter delimiter;
     private CompleteHandler handler;
@@ -38,6 +39,7 @@ public class SocketTransportListener implements TransportListener {
 
         public SocketTransportListenerBuilder listenOn(InetAddress addr, int port) {
             try {
+                obj.ioSelector = Selector.open();
                 obj.selector = Selector.open();
                 obj.ch = ServerSocketChannel.open();
                 obj.ch.bind(new InetSocketAddress(addr, port));
@@ -49,6 +51,7 @@ public class SocketTransportListener implements TransportListener {
 
         public SocketTransportListenerBuilder listenOn(InetAddress addr, int port, int backlog) {
             try {
+                obj.ioSelector = Selector.open();
                 obj.selector = Selector.open();
                 obj.ch = ServerSocketChannel.open();
                 obj.ch.bind(new InetSocketAddress(addr, port), backlog);
@@ -60,6 +63,7 @@ public class SocketTransportListener implements TransportListener {
 
         public SocketTransportListenerBuilder listenOn(String host, int port, int backlog) {
             try {
+                obj.ioSelector = Selector.open();
                 obj.selector = Selector.open();
                 obj.ch = ServerSocketChannel.open();
                 InetAddress addr = InetAddress.getByName(host);
@@ -107,9 +111,8 @@ public class SocketTransportListener implements TransportListener {
 
     @Override
     public void onConnect(Transport transport) throws IOException {
-        SocketTransport st = (SocketTransport) transport;
-        st.channel().configureBlocking(false);
-        st.channel().register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+        ReaderTask readerTask = new ReaderTask((SocketTransport)transport, ioSelector);
+        this.execute(readerTask);
     }
 
     @Override
@@ -167,8 +170,9 @@ public class SocketTransportListener implements TransportListener {
                                     .delimiter(listener.delimiter).completeHandler(listener.handler).build();
                             try {
                                 listener.onConnect(st);
-                            } catch (IOException e) {
-                                e.printStackTrace();
+                            } catch (Exception e) {
+                                e.printStackTrace(System.err);
+                                System.exit(-1);
                             }
                         }
                     }

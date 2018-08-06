@@ -19,6 +19,7 @@ public class EchoServer {
             SocketTransport st = (SocketTransport) tr;
             try {
                 st.write(bf);
+                bf.clear();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -29,7 +30,7 @@ public class EchoServer {
         CompleteHandler echo = new EchoHandler();
         SocketTransportListener listener = new SocketTransportListener.SocketTransportListenerBuilder()
                 .listenOn("localhost", 17788, 800).executor(Executors.newScheduledThreadPool(200))
-                .delimiter(new LineDelimiter("123")).handler(echo).build();
+                .delimiter(new LineDelimiter("\r\n")).handler(echo).build();
         listener.listen();
         System.in.read();
     }

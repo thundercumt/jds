@@ -1,6 +1,7 @@
 package org.jds.transport;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -18,9 +19,10 @@ public class ReaderTask extends SelectorTask {
         this.st = transport;
         if (!st.channel().isRegistered()) {
             try {
-                st.channel().register(selector, SelectionKey.OP_READ);
-            } catch (ClosedChannelException e) {
-                e.printStackTrace();
+                st.channel().configureBlocking(false);
+                st.channel().register(selector, SelectionKey.OP_READ, transport);
+            } catch (IOException e) {
+                e.printStackTrace(System.err);
             }
         }
     }
@@ -31,7 +33,7 @@ public class ReaderTask extends SelectorTask {
             int n = 0;
             try {
                 n = selector.select();
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
 
@@ -48,13 +50,15 @@ public class ReaderTask extends SelectorTask {
                     // key.cancel();
                     SocketChannel ch = (SocketChannel) key.channel();
                     SocketTransport st = ((SocketTransport) key.attachment());
+                    ByteBuffer rb = st.readBuffer();
                     try {
-                        int r = ch.read(st.readBuffer());
+                        int r = ch.read(rb);
                         if (r == -1)
                             key.cancel();
-                        int end = st.delimiter().complete(st.readBuffer());
+                        rb.flip();
+                        int end = st.delimiter().complete(rb);
                         if (end != -1)
-                            st.handle(st.readBuffer(), end);
+                            st.handle(rb, end);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
