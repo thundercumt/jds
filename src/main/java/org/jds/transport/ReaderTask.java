@@ -53,13 +53,20 @@ public class ReaderTask extends SelectorTask {
                     ByteBuffer rb = st.readBuffer();
                     try {
                         int r = ch.read(rb);
-                        if (r == -1)
+                        if (r == -1) {
                             key.cancel();
+                            continue;
+                        }
                         rb.flip();
                         int end = st.delimiter().complete(rb);
                         if (end != -1)
                             st.handle(rb, end);
-                    } catch (IOException e) {
+                        else {
+                            rb.position(rb.limit());
+                            rb.limit(rb.capacity());
+                        }
+                    } catch (Exception e) {
+                        key.cancel();
                         e.printStackTrace();
                     }
                 }

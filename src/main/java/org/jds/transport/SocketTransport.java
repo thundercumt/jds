@@ -2,6 +2,7 @@ package org.jds.transport;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -10,43 +11,39 @@ import java.nio.channels.SocketChannel;
 import org.jds.protocol.Delimiter;
 
 public class SocketTransport implements Transport {
-    private Socket s;
     private SocketChannel ch;
     private ByteBuffer rb;
     private ByteBuffer wb;
     private Delimiter dl;
     private CompleteHandler handler;
 
-    static class SocketTransportBuilder {
+    public static class SocketTransportBuilder {
         private SocketTransport st = new SocketTransport();
 
         public SocketTransport build() {
             return st;
         }
 
-        public SocketTransportBuilder socket(String host, int port) {
+        public SocketTransportBuilder connect(String host, int port) {
             try {
-                st.s = new Socket(host, port);
-                st.ch = st.s.getChannel();
+                st.ch = SocketChannel.open(new InetSocketAddress(host, port));
             } catch (IOException e) {
                 e.printStackTrace();
             }
             return this;
         }
 
-        public SocketTransportBuilder socket(InetAddress addr, int port) {
+        public SocketTransportBuilder connect(InetAddress addr, int port) {
             try {
-                st.s = new Socket(addr, port);
-                st.ch = st.s.getChannel();
+                st.ch = SocketChannel.open(new InetSocketAddress(addr, port));
             } catch (IOException e) {
                 e.printStackTrace();
             }
             return this;
         }
-
+        
         public SocketTransportBuilder channel(SocketChannel ch) {
             st.ch = ch;
-            st.s = ch.socket();
             return this;
         }
 
@@ -90,10 +87,6 @@ public class SocketTransport implements Transport {
     private SocketTransport() {
     }
 
-    public Socket socket() {
-        return s;
-    }
-
     public SocketChannel channel() {
         return ch;
     }
@@ -113,6 +106,14 @@ public class SocketTransport implements Transport {
     @Override
     public int write(byte[] buf, int offset, int len) throws IOException {
         return ch.write(ByteBuffer.wrap(buf, offset, len));
+    }
+
+    public int write(byte[] buf, int offset) throws IOException {
+        return ch.write(ByteBuffer.wrap(buf, offset, buf.length));
+    }
+    
+    public int write(byte[] buf) throws IOException {
+        return ch.write(ByteBuffer.wrap(buf, 0, buf.length));
     }
 
     public int write(ByteBuffer bf) throws IOException {
